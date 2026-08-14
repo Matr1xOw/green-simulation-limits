@@ -1,0 +1,16 @@
+{
+  "name": "green-simulation-limits",
+  "version": "1.0.0",
+  "description": "Where green nested simulation stops paying for itself when the conditional density has to be estimated",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.23.1",
+    "typescript": "^5"
+  }
+}
