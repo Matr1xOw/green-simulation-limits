@@ -8,24 +8,26 @@ This reproduces the method's headline result, then measures what happens when
 `f` has to be estimated instead — which is the situation in every domain that
 does not come with a generative model attached.
 
+![IMSE against conditioning dimension](imse.png)
+
 ```
-  d   standard   GNS known   GNS kernel   pooled mean
-  ────────────────────────────────────────────────────────
-  1     0.0141     0.0002     0.0010     0.1678
-  2     0.0135     0.0001     0.0030     0.1688
-  4     0.0145     0.0001     0.0090     0.1785
-  8     0.0141     0.0001     0.0135     0.1802
+  d     standard    GNS known   GNS kernel  pooled mean
+  -----------------------------------------------------
+  1       0.0134       0.0001       0.0011       0.1816
+  2       0.0132       0.0001       0.0032       0.1816
+  4       0.0133       0.0001       0.0084       0.1816
+  8       0.0135       0.0001       0.0129       0.1816
 ```
 
 Integrated mean squared error against a closed form, lower is better. Budget
 4,000 paths, 40 trials, seeded.
 
-**With `f` known, GNS is ~100× better than standard nested simulation.** That is
-the paper's result, reproduced.
+**With `f` known, GNS is over 100× better than standard nested simulation.**
+That is the paper's result, reproduced.
 
-**Estimating `f` costs a factor of five in one dimension and the entire
+**Estimating `f` costs an order of magnitude in one dimension and the entire
 advantage by eight**, where the kernel version and plain nested simulation are
-the same number. It still beats ignoring the conditioning altogether — so some
+the same number. It still beats ignoring the conditioning altogether, so some
 information survives — but nothing is left of the reason to use the method.
 
 ## Why this is the interesting number
@@ -44,8 +46,8 @@ Nobody has to find that crossover in the original setting, because Lee–Carter
 hands you a closed-form normal.
 
 The mechanism is ordinary curse of dimensionality, but it bites somewhere
-specific: the mixture denominator `g = (1/M) Σ f(·|κᵢ)` is the thing that keeps
-the likelihood ratio from exploding between distant scenarios, and the mixture
+specific: the mixture denominator `g = (1/M) Σ f(·|κᵢ)` is what keeps the
+likelihood ratio from exploding between distant scenarios, and the mixture
 denominator is exactly what cannot be estimated reliably in moderate dimension.
 The variance control and the dimensionality problem are not two limitations.
 They are one limitation seen from two sides.
@@ -54,19 +56,19 @@ They are one limitation seen from two sides.
 
 Deliberately the paper's own K-call case, so the reproduction is checkable:
 
-- A risk factor following a random walk with drift, `κ' = κ + μ + σZ`. The
+- A risk factor following a random walk with drift, `κ' = κ + μ + σZ`, so the
   conditional density is a closed-form normal.
 - A call-style payoff at maturity, `H(x) = max(x − K, 0)`.
-- The target is `V(κ) = E[H | κ]` across many outer scenarios.
+- The target is `V(κ) = E[H | κ]` across 200 outer scenarios.
 - `V` has an exact solution — Bachelier's formula — so error is **measured, not
-  estimated**. The analytic value is itself checked against brute-force Monte
-  Carlo in the tests, because an IMSE computed against a wrong closed form
-  would be worthless.
+  estimated**. The analytic value is itself checked against 2 million
+  brute-force draws in the tests, because an IMSE computed against a wrong
+  closed form would be worthless.
 
 One addition: the conditioning state is embedded in `d` dimensions of which
 only the first drives the payoff. That is the situation you are in whenever you
-have features and do not know which of them matter — you cannot drop the
-irrelevant ones, because you cannot tell which they are.
+have features and cannot tell which of them matter — you can't drop the
+irrelevant ones, because you don't know which they are.
 
 Four estimators:
 
@@ -77,19 +79,22 @@ Four estimators:
 | `GNS kernel` | same, with the ratio replaced by kernel similarity over the state |
 | `pooled mean` | ignore the conditioning entirely — the floor |
 
-`standard` and `GNS known` never touch the conditioning features, so their
+`standard` and `GNS known` never read the conditioning features, so their
 columns are flat in `d`. That is the control: it shows the movement in the
-`GNS kernel` column is the dimension doing it, not the simulation drifting.
+`GNS kernel` column is dimension doing it, not the simulation drifting.
 
 ## Running it
 
 ```bash
-npm install
-npm start     # prints the table
-npm test      # 9 tests, including a Monte Carlo check of the closed form
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+python main.py            # prints the table
+python main.py --plot     # also writes imse.png
+pytest                    # 8 tests
 ```
 
-TypeScript, no dependencies beyond `tsx`. No data files, no network.
+numpy, scipy, matplotlib. No data files, no network.
 
 ## Reference
 
