@@ -129,6 +129,22 @@ def gns_kernel(e, dimensions):
     return _self_normalised(weights, e.payoffs)
 
 
+def effective_sample_size(e, dimensions):
+    """How many draws the kernel weighting is really averaging, per scenario.
+
+    ESS = 1 / sum(w^2) on self-normalised weights, the standard importance
+    sampling diagnostic. It is the number that explains the headline result:
+    reuse only helps while the weights spread across many draws, and in high
+    dimension almost all the weight lands on a handful of near neighbours.
+    """
+    state = np.column_stack([e.kappa, e.noise])[:, :dimensions]
+    bandwidth = e.budget ** (-1.0 / (dimensions + 4))
+    gaps = state[:, None, :] - state[e.source][None, :, :]
+    weights = np.exp(-0.5 * np.sum(gaps**2, axis=2) / bandwidth**2)
+    weights = weights / weights.sum(axis=1, keepdims=True)
+    return float(np.median(1.0 / np.sum(weights**2, axis=1)))
+
+
 def pooled(e):
     """The floor: ignore the conditioning entirely."""
     return np.full(e.kappa.size, e.payoffs.mean())
@@ -145,8 +161,13 @@ ESTIMATORS = {
 def study(dimensions, outer=200, inner=20, trials=40, seed=1000):
     """Mean IMSE per estimator at one conditioning dimension."""
     totals = {name: [] for name in ESTIMATORS}
+    ess = []
     for trial in range(trials):
         e = simulate(seed + trial * 7, dimensions, outer, inner)
         for name, estimate in ESTIMATORS.items():
             totals[name].append(imse(estimate(e, dimensions), e.kappa))
-    return {name: float(np.mean(values)) for name, values in totals.items()}
+        ess.append(effective_sample_size(e, dimensions))
+
+    result = {name: float(np.mean(values)) for name, values in totals.items()}
+    result["kernel ESS"] = float(np.mean(ess))
+    return result

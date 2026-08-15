@@ -11,12 +11,12 @@ does not come with a generative model attached.
 ![IMSE against conditioning dimension](imse.png)
 
 ```
-  d     standard    GNS known   GNS kernel  pooled mean
-  -----------------------------------------------------
-  1       0.0134       0.0001       0.0011       0.1816
-  2       0.0132       0.0001       0.0032       0.1816
-  4       0.0133       0.0001       0.0084       0.1816
-  8       0.0135       0.0001       0.0129       0.1816
+  d     standard    GNS known   GNS kernel  pooled mean   kernel ESS
+  ------------------------------------------------------------------
+  1       0.0134       0.0001       0.0011       0.1816        826.8
+  2       0.0132       0.0001       0.0032       0.1816        244.2
+  4       0.0133       0.0001       0.0084       0.1816         40.9
+  8       0.0135       0.0001       0.0129       0.1816         20.3
 ```
 
 Integrated mean squared error against a closed form, lower is better. Budget
@@ -27,8 +27,20 @@ That is the paper's result, reproduced.
 
 **Estimating `f` costs an order of magnitude in one dimension and the entire
 advantage by eight**, where the kernel version and plain nested simulation are
-the same number. It still beats ignoring the conditioning altogether, so some
-information survives — but nothing is left of the reason to use the method.
+the same number.
+
+The last column says why. Effective sample size, `1/Σw²` on the normalised
+weights, is how many of the 4,000 pooled draws the weighting is really
+averaging for a given scenario. It falls 827 → 20 as dimension grows, and
+**standard nested simulation gives each scenario exactly 20 paths**. So by
+eight dimensions the reuse is averaging no more information than the naive
+method it was meant to replace, and the two columns agreeing is a consequence
+rather than a coincidence.
+
+The weights have not gone uniform — that would collapse toward the pooled mean,
+and it does not. They have gone *concentrated*: nearly all the weight lands on
+a handful of near neighbours, and in eight dimensions being a near neighbour
+overall says little about being near in the one dimension that matters.
 
 ## Why this is the interesting number
 

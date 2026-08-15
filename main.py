@@ -21,17 +21,25 @@ def main():
     print(f"{OUTER} outer scenarios, {INNER} inner paths each, "
           f"budget {OUTER * INNER}, {TRIALS} trials\n")
 
-    header = "  d" + "".join(name.rjust(13) for name in ESTIMATORS)
+    columns = list(ESTIMATORS) + ["kernel ESS"]
+    header = "  d" + "".join(name.rjust(13) for name in columns)
     print(header)
     print("  " + "-" * (len(header) - 2))
 
     results = {}
     for d in DIMENSIONS:
         results[d] = study(d, OUTER, INNER, TRIALS)
-        row = f"  {d}" + "".join(f"{results[d][n]:13.4f}" for n in ESTIMATORS)
+        row = f"  {d}" + "".join(
+            f"{results[d][n]:13.1f}" if n == "kernel ESS" else f"{results[d][n]:13.4f}"
+            for n in columns
+        )
         print(row)
 
-    print("\nIMSE against the closed form; lower is better. `standard` and")
+    print(f"\nkernel ESS is how many of the {OUTER * INNER} pooled draws the kernel")
+    print(f"weighting really averages per scenario. Standard nested simulation")
+    print(f"gives each scenario {INNER}, so ESS falling to {INNER} means the reuse")
+    print("has bought nothing at all.\n")
+    print("IMSE against the closed form; lower is better. `standard` and")
     print("`GNS known` never read the conditioning features, so their columns")
     print("do not move with d. `GNS kernel` climbing toward `standard` is the")
     print("method losing everything it was supposed to buy.\n")
