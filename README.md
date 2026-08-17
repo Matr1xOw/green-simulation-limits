@@ -109,7 +109,25 @@ per-scenario path count, reuse has stopped buying anything and the extra
 machinery is not earning its place.
 
 The paper does not report it. On this evidence it is the cheapest available
-answer to "is likelihood-ratio reuse worth it here?"
+answer to "is likelihood-ratio reuse worth it here?" — with one important
+limit.
+
+**It is one-sided.** Widening the bandwidth at `d = 1` sends ESS up while the
+estimate falls apart:
+
+| scale | ESS | IMSE |
+| --- | --- | --- |
+| 0.10 | 85 | 0.0056 |
+| 1.00 | 792 | 0.0008 |
+| 4.00 | 2,760 | 0.0288 |
+| 16.00 | **3,971** | **0.1286** |
+
+The unconditional mean scores 0.1500, so the last row is an estimator that has
+almost entirely stopped conditioning — while reporting near-perfect effective
+sample size. Uniform weights have maximal ESS and no information.
+
+So low ESS is a reliable signal that reuse has stopped paying. High ESS is not
+a signal that it is working. Useful as a floor, useless as a certificate.
 
 ## The tails, where the paper is candid and averages are not
 
