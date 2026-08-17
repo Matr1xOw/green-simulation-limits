@@ -4,6 +4,10 @@ import pytest
 from gns import (
     MU,
     SIGMA,
+    convergence,
+    error_by_tail,
+    gns_pairwise,
+    slope,
     Experiment,
     gns_kernel,
     gns_known,
@@ -80,3 +84,30 @@ def test_simulation_is_deterministic():
     b = simulate(seed=7, dimensions=2, outer=50, inner=5)
     np.testing.assert_array_equal(a.draws, b.draws)
     np.testing.assert_array_equal(a.kappa, b.kappa)
+
+
+def test_mixture_denominator_beats_pairwise():
+    """The paper's design choice, measured rather than repeated."""
+    e = simulate(seed=1234, dimensions=1, outer=200, inner=20)
+    assert imse(gns_known(e), e.kappa) < imse(gns_pairwise(e), e.kappa) / 10
+
+
+def test_gns_converges_at_the_theoretical_rate():
+    """Variance O(1/budget), so slope -1 on log-log."""
+    budgets = [1000, 2000, 4000, 8000]
+    conv = convergence(budgets, trials=8)
+    assert slope(budgets, [conv[b]["GNS known"] for b in budgets]) < -0.8
+
+
+def test_pooled_mean_does_not_converge():
+    """Control: ignoring the conditioning cannot improve with budget."""
+    budgets = [1000, 2000, 4000, 8000]
+    conv = convergence(budgets, trials=8)
+    assert abs(slope(budgets, [conv[b]["pooled mean"] for b in budgets])) < 0.1
+
+
+def test_error_grows_toward_the_tails():
+    """The paper's caveat: reuse is weakest far from the mixture centre."""
+    tails = error_by_tail(trials=10)
+    for name in ("GNS known", "GNS kernel"):
+        assert tails[name][-1] > tails[name][0]

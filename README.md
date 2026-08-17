@@ -11,12 +11,11 @@ does not come with a generative model attached.
 ![IMSE against conditioning dimension](imse.png)
 
 ```
-  d     standard    GNS known   GNS kernel  pooled mean   kernel ESS
-  ------------------------------------------------------------------
-  1       0.0134       0.0001       0.0011       0.1816        826.8
-  2       0.0132       0.0001       0.0032       0.1816        244.2
-  4       0.0133       0.0001       0.0084       0.1816         40.9
-  8       0.0135       0.0001       0.0129       0.1816         20.3
+  d     standard    GNS known GNS pairwise   GNS kernel  pooled mean   kernel ESS
+  1       0.0134       0.0001       0.0038       0.0011       0.1816        826.8
+  2       0.0132       0.0001       0.0038       0.0032       0.1816        244.2
+  4       0.0133       0.0001       0.0066       0.0084       0.1816         40.9
+  8       0.0135       0.0001       0.0057       0.0129       0.1816         20.3
 ```
 
 Integrated mean squared error against a closed form, lower is better. Budget
@@ -41,6 +40,61 @@ The weights have not gone uniform — that would collapse toward the pooled mean
 and it does not. They have gone *concentrated*: nearly all the weight lands on
 a handful of near neighbours, and in eight dimensions being a near neighbour
 overall says little about being near in the one dimension that matters.
+
+## The convergence rate, which is the sharper result
+
+IMSE against total budget at `d = 1`, with the log-log slope fitted underneath.
+Theory says `-1`.
+
+```
+budget     standard    GNS known GNS pairwise   GNS kernel  pooled mean
+  1000       0.0537       0.0004       0.0222       0.0024       0.1658
+  2000       0.0254       0.0002       0.0130       0.0018       0.1657
+  4000       0.0132       0.0001       0.0515       0.0011       0.1657
+  8000       0.0066       0.0000       0.0054       0.0008       0.1657
+ 16000       0.0033       0.0000       0.0131       0.0004       0.1656
+ slope        -1.00        -0.96        -0.28        -0.65        -0.00
+```
+
+**GNS with a known density hits `-0.96`.** The theorem, reproduced — not just
+the magnitude at one budget but the rate.
+
+**With the density estimated it converges at `-0.65`.** This is the finding I
+did not expect: estimating `f` does not cost a constant factor, it *changes the
+exponent*. The gap therefore widens with budget, so more compute never closes
+it. The direction is what kernel regression predicts, its MSE rate being
+`n^(-4/(d+4))`, though I would not claim the measured number pins that exactly.
+
+**Pairwise sits at `-0.28` and is not even monotone** — 0.0130 at budget 2,000,
+0.0515 at 4,000. That non-monotonicity is the signature of the heavy-tailed
+weight distribution the mixture denominator exists to prevent, and it is why
+the paper insists on the mixture rather than a pairwise ratio.
+
+**`pooled mean` is flat at `-0.00`.** It has no conditioning to refine, so it
+cannot converge to the truth however large the budget. The control behaving
+exactly as it must is what makes the other three columns readable.
+
+## The tails, where the paper is candid and averages are not
+
+IMSE grouped by distance from the centre of the mixture, `d = 1`:
+
+```
+  |kappa|     standard    GNS known GNS pairwise   GNS kernel  pooled mean
+  central       0.0090       0.0000       0.0014       0.0002       0.0279
+    inner       0.0113       0.0000       0.0020       0.0004       0.0405
+    outer       0.0140       0.0001       0.0027       0.0007       0.0965
+     tail       0.0207       0.0004       0.0155       0.0036       0.5558
+```
+
+Every estimator is worse in the tails, but they are not worse equally. Standard
+nested simulation degrades about 2×, because each scenario keeps its own paths
+wherever it sits. Both GNS variants degrade closer to 10–20×: scenarios far
+from the centre of the mixture are exactly the ones with few well-weighted
+paths to reuse.
+
+That is the paper's own stated trade, confirmed independently. It matters
+because a single averaged IMSE hides it, and the tails are where VaR and
+capital requirements are read.
 
 ## Why this is the interesting number
 

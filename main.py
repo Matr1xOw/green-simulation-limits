@@ -1,4 +1,4 @@
-"""Print the table, and optionally draw the chart.
+"""Print the three results.
 
     python main.py
     python main.py --plot
@@ -6,10 +6,23 @@
 
 import argparse
 
-from gns import ESTIMATORS, study
+from gns import ESTIMATORS, convergence, error_by_tail, slope, study
 
 DIMENSIONS = [1, 2, 4, 8]
+BUDGETS = [1000, 2000, 4000, 8000, 16000]
 OUTER, INNER, TRIALS = 200, 20, 40
+
+
+def table(header, rows, first="  d"):
+    width = len(first)
+    print(first + "".join(name.rjust(13) for name in header))
+    print(" " * (width - 2) + "-" * (13 * len(header) + 2))
+    for label, values in rows:
+        print(str(label).rjust(width) + "".join(values))
+
+
+def cell(value, ess=False):
+    return f"{value:13.1f}" if ess else f"{value:13.4f}"
 
 
 def main():
@@ -17,37 +30,45 @@ def main():
     parser.add_argument("--plot", action="store_true", help="also write imse.png")
     args = parser.parse_args()
 
-    print("\nGreen nested simulation - known vs estimated density")
-    print(f"{OUTER} outer scenarios, {INNER} inner paths each, "
-          f"budget {OUTER * INNER}, {TRIALS} trials\n")
-
     columns = list(ESTIMATORS) + ["kernel ESS"]
-    header = "  d" + "".join(name.rjust(13) for name in columns)
-    print(header)
-    print("  " + "-" * (len(header) - 2))
 
-    results = {}
-    for d in DIMENSIONS:
-        results[d] = study(d, OUTER, INNER, TRIALS)
-        row = f"  {d}" + "".join(
-            f"{results[d][n]:13.1f}" if n == "kernel ESS" else f"{results[d][n]:13.4f}"
-            for n in columns
-        )
-        print(row)
+    print(f"\n1. IMSE by conditioning dimension "
+          f"({OUTER} scenarios x {INNER} paths, {TRIALS} trials)\n")
+    results = {d: study(d, OUTER, INNER, TRIALS) for d in DIMENSIONS}
+    table(
+        columns,
+        [(d, [cell(results[d][n], n == "kernel ESS") for n in columns])
+         for d in DIMENSIONS],
+    )
+    print(f"\n   ESS is how many of the {OUTER * INNER} pooled draws the kernel really")
+    print(f"   averages. Standard nested simulation gives each scenario {INNER}, so ESS")
+    print("   falling that far means the reuse has bought nothing.")
 
-    print(f"\nkernel ESS is how many of the {OUTER * INNER} pooled draws the kernel")
-    print(f"weighting really averages per scenario. Standard nested simulation")
-    print(f"gives each scenario {INNER}, so ESS falling to {INNER} means the reuse")
-    print("has bought nothing at all.\n")
-    print("IMSE against the closed form; lower is better. `standard` and")
-    print("`GNS known` never read the conditioning features, so their columns")
-    print("do not move with d. `GNS kernel` climbing toward `standard` is the")
-    print("method losing everything it was supposed to buy.\n")
+    print("\n\n2. IMSE by total budget, d = 1 (theory says slope -1)\n")
+    conv = convergence(BUDGETS, trials=TRIALS // 2)
+    table(
+        list(ESTIMATORS),
+        [(b, [cell(conv[b][n]) for n in ESTIMATORS]) for b in BUDGETS],
+        first="budget",
+    )
+    slopes = {n: slope(BUDGETS, [conv[b][n] for b in BUDGETS]) for n in ESTIMATORS}
+    print(" slope" + "".join(f"{slopes[n]:13.2f}" for n in ESTIMATORS))
+
+    print("\n\n3. IMSE by distance from the mixture centre, d = 1\n")
+    tails = error_by_tail(trials=TRIALS)
+    labels = ["central", "inner", "outer", "tail"]
+    table(
+        list(ESTIMATORS),
+        [(labels[b], [cell(tails[n][b]) for n in ESTIMATORS])
+         for b in range(len(labels))],
+        first="  |kappa|",
+    )
+    print("\n   The paper's own caveat, reproduced: reuse degrades in the tails,")
+    print("   which is exactly where VaR and capital requirements are read.\n")
 
     if args.plot:
         from plot import draw
-        path = draw(results, DIMENSIONS)
-        print(f"wrote {path}\n")
+        print(f"wrote {draw(results, DIMENSIONS)}\n")
 
 
 if __name__ == "__main__":
