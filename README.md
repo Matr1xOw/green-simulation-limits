@@ -59,11 +59,21 @@ budget     standard    GNS known GNS pairwise   GNS kernel  pooled mean
 **GNS with a known density hits `-0.96`.** The theorem, reproduced — not just
 the magnitude at one budget but the rate.
 
-**With the density estimated it converges at `-0.65`.** This is the finding I
-did not expect: estimating `f` does not cost a constant factor, it *changes the
-exponent*. The gap therefore widens with budget, so more compute never closes
-it. The direction is what kernel regression predicts, its MSE rate being
-`n^(-4/(d+4))`, though I would not claim the measured number pins that exactly.
+**With the density estimated it converges at `-0.65`.** Estimating `f` does not
+cost a constant factor, it *changes the exponent*, so the gap widens with
+budget and more compute never closes it.
+
+Worth being careful about what this is and is not. Hong, Juneja & Liu (2017),
+cited in the paper's own §1.2, give kernel smoothing
+`O(Γ^-min{1, 4/(d+2)})` — at `d = 1` that predicts a rate of 1, and I measure
+0.65 at budgets to 16,000. So the asymptotics have not taken hold at this
+scale rather than the rate being wrong. It is not the bandwidth: moving the
+exponent between `d+2`, `d+4` and `2` changes the slope by under 0.03.
+
+Note also that `standard` here holds `M` fixed at 200, so it converges at 1
+rather than the Gordy–Juneja `O(Γ^-2/3)` for an optimal allocation. The
+`d < 4` crossover those two published rates imply therefore does not describe
+this setup, which is one reason the measured crossover sits nearer 8.
 
 **Pairwise sits at `-0.28` and is not even monotone** — 0.0130 at budget 2,000,
 0.0515 at 4,000. That non-monotonicity is the signature of the heavy-tailed
