@@ -63,17 +63,48 @@ the magnitude at one budget but the rate.
 cost a constant factor, it *changes the exponent*, so the gap widens with
 budget and more compute never closes it.
 
-Worth being careful about what this is and is not. Hong, Juneja & Liu (2017),
-cited in the paper's own §1.2, give kernel smoothing
-`O(Γ^-min{1, 4/(d+2)})` — at `d = 1` that predicts a rate of 1, and I measure
-0.65 at budgets to 16,000. So the asymptotics have not taken hold at this
-scale rather than the rate being wrong. It is not the bandwidth: moving the
-exponent between `d+2`, `d+4` and `2` changes the slope by under 0.03.
+### What the rate is not
 
-Note also that `standard` here holds `M` fixed at 200, so it converges at 1
-rather than the Gordy–Juneja `O(Γ^-2/3)` for an optimal allocation. The
-`d < 4` crossover those two published rates imply therefore does not describe
-this setup, which is one reason the measured crossover sits nearer 8.
+Hong, Juneja & Liu (2017), cited in the paper's own §1.2, give kernel smoothing
+`O(Γ^-min{1, 4/(d+2)})`. Comparing that prediction against the measured slope
+at each dimension does not go the way you would expect:
+
+| d | Hong et al. predicts | measured |
+| --- | --- | --- |
+| 1 | 1.00 | 0.63 |
+| 2 | 1.00 | 0.64 |
+| 4 | 0.67 | 0.76 |
+| 8 | 0.40 | **0.98** |
+
+The predicted rate degrades with dimension. The measured one improves. The ESS
+column explains it: by `d = 8` the weighting has collapsed to about 20
+effective draws, so the estimator has degenerated into standard nested
+simulation, which converges at 1 under this fixed-`M` allocation. **The level
+degrades while the rate does not, because at high `d` it has stopped being a
+kernel estimator.**
+
+### And the bandwidth dominates
+
+The exponent hardly matters — moving it between `d+2`, `d+4` and `2` shifts the
+slope by under 0.03. The multiplier is another story, at `d = 1`:
+
+| scale | slope | IMSE at 4,000 |
+| --- | --- | --- |
+| 0.25 | 0.80 | 0.0026 |
+| 0.50 | 0.73 | 0.0016 |
+| 1.00 | 0.63 | 0.0012 |
+| 2.00 | 0.66 | 0.0046 |
+| 4.00 | 0.45 | 0.0325 |
+
+An order of magnitude in error and 0.35 in slope, from one untuned constant.
+Note too that the scale giving the best *rate* (0.25) is not the one giving the
+lowest *error* at this budget (1.00).
+
+So the honest reading of the 0.63 above is that it cannot be separated from the
+bandwidth being untuned — which is precisely the objection §1.2 raises against
+kernel smoothing, that the bandwidth is "difficult and time-consuming to tune".
+Everything here uses `scale = 1` throughout, chosen before any of this was
+measured and left alone.
 
 **Pairwise sits at `-0.28` and is not even monotone** — 0.0130 at budget 2,000,
 0.0515 at 4,000. That non-monotonicity is the signature of the heavy-tailed

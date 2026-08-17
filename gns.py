@@ -91,16 +91,39 @@ def gns_pairwise(e):
     return _self_normalised(f / own, e.payoffs)
 
 
-def _kernel_weights(e, dimensions):
+def _kernel_weights(e, dimensions, scale=1.0):
     state = np.column_stack([e.kappa, e.noise])[:, :dimensions]
-    bandwidth = e.budget ** (-1.0 / (dimensions + 4))  # d+4: the curse, algebraically
+    # d+4: the curse, algebraically. The exponent barely moves the result;
+    # `scale` does, which is the tuning difficulty Hong et al. are known for.
+    bandwidth = scale * e.budget ** (-1.0 / (dimensions + 4))
     gaps = state[:, None, :] - state[e.source][None, :, :]
     return np.exp(-0.5 * np.sum(gaps**2, axis=2) / bandwidth**2)
 
 
-def gns_kernel(e, dimensions):
+def gns_kernel(e, dimensions, scale=1.0):
     """GNS with f estimated: similarity over the conditioning state."""
-    return _self_normalised(_kernel_weights(e, dimensions), e.payoffs)
+    return _self_normalised(_kernel_weights(e, dimensions, scale), e.payoffs)
+
+
+def bandwidth_sensitivity(scales, dimensions=1, budgets=(1000, 2000, 4000, 8000, 16000),
+                          outer=200, trials=12, seed=2000):
+    """IMSE and convergence rate against the bandwidth multiplier.
+
+    Untuned, this is the dominant free parameter: error at a fixed budget moves
+    by an order of magnitude across plausible scales, and the scale minimising
+    error at one budget is not the one giving the best rate.
+    """
+    out = {}
+    for scale in scales:
+        vals = []
+        for budget in budgets:
+            errs = []
+            for trial in range(trials):
+                e = simulate(seed + trial * 7, dimensions, outer, budget // outer)
+                errs.append(imse(gns_kernel(e, dimensions, scale), e.kappa))
+            vals.append(float(np.mean(errs)))
+        out[scale] = {"slope": slope(list(budgets), vals), "imse": dict(zip(budgets, vals))}
+    return out
 
 
 def effective_sample_size(e, dimensions):
