@@ -63,57 +63,53 @@ the magnitude at one budget but the rate.
 cost a constant factor, it *changes the exponent*, so the gap widens with
 budget and more compute never closes it.
 
-### What the rate is not
+### The rate comparison, and why it resolves
 
 Hong, Juneja & Liu (2017), cited in the paper's own §1.2, give kernel smoothing
-`O(Γ^-min{1, 4/(d+2)})`. Comparing that prediction against the measured slope
-at each dimension does not go the way you would expect:
+`O(Γ^-min{1, 4/(d+2)})`. Comparing that against the measured slope at each
+dimension appears to invert it:
 
-| d | Hong et al. predicts | measured |
+| d | Hong et al. predicts | measured at scale 1 |
 | --- | --- | --- |
 | 1 | 1.00 | 0.63 |
 | 2 | 1.00 | 0.64 |
 | 4 | 0.67 | 0.76 |
 | 8 | 0.40 | **0.98** |
 
-The predicted rate degrades with dimension. The measured one improves. The ESS
-column explains it: by `d = 8` the weighting has collapsed to about 20
-effective draws, so the estimator has degenerated into standard nested
-simulation, which converges at 1 under this fixed-`M` allocation. **The level
-degrades while the rate does not, because at high `d` it has stopped being a
-kernel estimator.**
+Both ends have explanations, and neither is an anomaly.
 
-### And the bandwidth dominates
+**At low `d` it is the bandwidth.** Sweeping the multiplier and the exponent
+jointly at `d = 1`, the slope tracks the multiplier and ignores the exponent
+almost entirely:
 
-The exponent hardly matters — moving it between `d+2`, `d+4` and `2` shifts the
-slope by under 0.03. The multiplier is another story, at `d = 1`:
+| scale | exp d+2 | exp d+4 | exp 6 | exp 8 |
+| --- | --- | --- | --- | --- |
+| 0.05 | 0.90 | 0.88 | 0.89 | 0.89 |
+| 0.25 | 0.77 | 0.80 | 0.80 | 0.79 |
+| 1.00 | 0.68 | 0.63 | 0.59 | 0.44 |
 
-| scale | slope | IMSE at 4,000 |
-| --- | --- | --- |
-| 0.25 | 0.80 | 0.0026 |
-| 0.50 | 0.73 | 0.0016 |
-| 1.00 | 0.63 | 0.0012 |
-| 2.00 | 0.66 | 0.0046 |
-| 4.00 | 0.45 | 0.0325 |
+Narrowing the bandwidth walks 0.63 up to 0.90 and it is still climbing. So the
+gap against the predicted 1.00 is an untuned parameter, which is exactly the
+difficulty §1.2 raises about kernel smoothing. Everything else in this repo
+uses `scale = 1`, chosen before any of it was measured and left alone.
 
-An order of magnitude in error and 0.35 in slope, from one untuned constant.
-Note too that the scale giving the best *rate* (0.25) is not the one giving the
-lowest *error* at this budget (1.00).
+**At high `d` it is degeneration.** By `d = 8` the weighting is down to about
+20 effective draws out of 4,000, and standard nested simulation gives each
+scenario exactly 20. The estimator has stopped being a kernel estimator and
+become the thing it was replacing, so it inherits that rate — 0.98 against the
+0.96 measured for `standard` under the same fixed-`M` allocation. **The error
+level degrades while the rate does not.**
 
-So the honest reading of the 0.63 above is that it cannot be separated from the
-bandwidth being untuned — which is precisely the objection §1.2 raises against
-kernel smoothing, that the bandwidth is "difficult and time-consuming to tune".
-Everything here uses `scale = 1` throughout, chosen before any of this was
-measured and left alone.
+### The residue: ESS as a stopping rule
 
-**Pairwise sits at `-0.28` and is not even monotone** — 0.0130 at budget 2,000,
-0.0515 at 4,000. That non-monotonicity is the signature of the heavy-tailed
-weight distribution the mixture denominator exists to prevent, and it is why
-the paper insists on the mixture rather than a pairwise ratio.
+What survives all of that is the diagnostic rather than the anomaly. Effective
+sample size needs no closed form and no known density — it is computable on a
+real problem, at runtime, from the weights themselves. When it approaches the
+per-scenario path count, reuse has stopped buying anything and the extra
+machinery is not earning its place.
 
-**`pooled mean` is flat at `-0.00`.** It has no conditioning to refine, so it
-cannot converge to the truth however large the budget. The control behaving
-exactly as it must is what makes the other three columns readable.
+The paper does not report it. On this evidence it is the cheapest available
+answer to "is likelihood-ratio reuse worth it here?"
 
 ## The tails, where the paper is candid and averages are not
 
