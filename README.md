@@ -161,7 +161,9 @@ They are one limitation seen from two sides.
 
 ## The setup
 
-Deliberately the paper's own K-call case, so the reproduction is checkable:
+The paper's K-call structure, with stylised parameters rather than their
+Lee-Carter calibration — the estimator's behaviour is what is under test, and
+it does not depend on the drift being realistic:
 
 - A risk factor following a random walk with drift, `κ' = κ + μ + σZ`, so the
   conditional density is a closed-form normal.
